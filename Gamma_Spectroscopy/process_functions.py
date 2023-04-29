@@ -17,6 +17,7 @@ from scipy.optimize import curve_fit
 
 # Spectral Analysis
 
+
 def select_reg(xmin, xmax, x_data, y_data):
     # Get the indices of the x values within the range we want to fit
     selected_region = (xmin <= x_data) & (x_data <= xmax)
@@ -31,7 +32,6 @@ def find_max(xmin, xmax, x_data, y_data):
     selected_region = (xmin <= x_data) & (x_data <= xmax)
     x_data,y_data = x_data[selected_region],y_data[selected_region]
     return  x_data[np.argmax(y_data)], np.max(y_data)
-
 
 
 def gaussian(x, a, N, center, stddev,b):
@@ -52,7 +52,7 @@ def gaussian(x, a, N, center, stddev,b):
 
 def gaussian_fit(xmin, xmax, x_data, y_data): # Define the range of x values to fit the Gaussian to
     # Plot the data
-    fig, ax = plt.subplots(figsize=(12,8))
+    fig, ax = plt.subplots(figsize=(8,6))
     ax.scatter(x_data, y_data, label="Data",color='red',s=20)
     x_data,y_data = select_reg(xmin, xmax, x_data, y_data)
     # Use the curve_fit function to fit the Gaussian to the selected data
@@ -84,105 +84,77 @@ def gaussian_fit(xmin, xmax, x_data, y_data): # Define the range of x values to 
     plt.ylim(0,y_max*1.2)
     plt.show()
 
+
+
 # Least Square Prediction on Composition
+
 
 def func(x, a, b, c, d, e, f, g, h, i):
     w = np.array([a, b, c, d, e, f, g, h, i])
     return np.dot(w, x)
 
 
-def least_square_weights(file_name, energy, countss, plotting=True):
-    y = countss[0]
-    x = np.array(countss[1:])
-
-    popt, pcov = curve_fit(func, x, y, p0=[1, 0, 0, 0, 0, 0, 0, 0, 0], bounds=(0, 1))
+def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, plotting=True):
+    unknown = countss[0]
+    samples = np.array(countss[1:])
+    popt, pcov = curve_fit(func, samples,
+                           unknown, p0=[1, 0, 0, 0, 0, 0, 0, 0, 0], 
+                           sigma=np.sqrt(unknown + 1), bounds=(0, 5))
 
     unknown_sample = countss[0]
     sample_counts = np.array(countss[1:])
+    sample_counts_uncer = np.array(countss_uncer[1:])
     pred_name = np.array(file_name[1:])
+    condition = np.where(popt >= cond)
 
-    print("The predictions are", pred_name[np.where(popt >= 0.1)])
-    print("With proportion of", popt[np.where(popt >= 0.1)])
+    print("The predictions are", pred_name[condition])
+    print("With proportion of", np.round(popt[condition], 3))
 
-    select_prop = popt[np.where(popt >= 0.1)]
-    select_samples = sample_counts[np.where(popt >= 0.1)]
-    pred_data = sample_counts[np.where(popt >= 0.1)]
+    select_prop = popt[condition]
+    select_samples = sample_counts[condition]
+    select_samples_uncer = sample_counts_uncer[condition]
+
     pred = np.zeros(len(unknown_sample))
+    pred_uncer = np.zeros(len(unknown_sample))
     for i in range(len(select_samples)):
         pred = pred + select_prop[i] * select_samples[i]
+        pred_uncer = np.sqrt(np.square(pred_uncer) + np.square(select_samples_uncer[i]))
 
-    if plotting == True:
-        plt.plot(energy, np.log(unknown_sample + 1), label="Unknown")
-        plt.plot(energy, np.log(pred + 1), label="Predition from least square")
-        plt.xlabel("Energy / keV")
-        plt.ylabel("log(Counts)")
-        plt.legend()
-
-
-
-
-def eval_cost(y1, y2, y3, a):
-    cost_array = abs((a * y1 + (1 - a) * y2) ** 2 - (y3) ** 2)
-    return cost_array.sum()
-
-
-def score(countss, file_name):
-    ele_min_cost = []
-    proportion = []
-    ele_name = []
-    cs_counts = countss[1]
-    unknown_counts = countss[0]
-    x_list = np.linspace(0, 1, 100)
-    for ele in range(len(file_name)):
-        if file_name[ele] != "Unknown" and file_name[ele] != "Cs137":
-            ele_name.append(file_name[ele])
-            counts = countss[ele]
-            cost_list = []
-            for a in range(len(x_list)):
-                cost_sum = eval_cost(cs_counts, counts, unknown_counts, x_list[a])
-                cost_list.append(cost_sum)
-                
-            ele_min_cost.append(np.array(cost_list).min())
-            proportion.append(x_list[np.argmin(np.array(cost_list))])
-        else:
-            pass
-    return  ele_name, ele_min_cost, proportion
-
-
-
-def score_result(ele_name, ele_min_cost, 
-                 proportion, plotting=True, 
-                 file_name=None, countss=None,
-                 energy=None):
     
-    df_fit = pd.DataFrame(data=[ele_name, np.round(ele_min_cost), proportion]).T
-    df_fit.columns = ["ele_name", "ele_min_cost", "proportion"]
-    df_fit.sort_values(by="ele_min_cost", inplace=True, ignore_index=True)
+    pred_uncer = pred_uncer / pred
+    pred = np.log(pred)
+    unknown_sample = np.log(unknown_sample)
 
-    elename = df_fit["ele_name"]
-    cost = df_fit["ele_min_cost"]
-    a = df_fit["proportion"]
 
-    df_fit.display()
-
-    print("Best case Scenario: \n"
-        f"The element present are Cs137 with proportion {round(a[0], 3)} \n"
-        f"with element {elename[0]} with proportion {round(1-a[0], 3)} \n"
-        f"With the cost of {cost[0]}")
+    pick_points = np.arange(int(len(pred)/15), int(len(pred)/1.7), int(len(pred)/30))
+    x = energy[pick_points]
+    y = pred[pick_points]
+    y_err = pred_uncer[pick_points]
 
     if plotting == True:
-        Cs137 = np.array(countss[1])
-        for i in range(len(elename)):
-            Best_fit = np.array(countss[file_name.index(elename[i])])
-            tot_pred_best = a[i] * Cs137 + (1 - a[i]) * Best_fit
+        breakpoint = int(len(energy)*3/5)
+        fig, ax = plt.subplots(figsize=(12,5))
+        ax.plot(energy[:breakpoint], unknown_sample[:breakpoint], label="Unknown", alpha=0.65)
+        ax.plot(energy[:breakpoint], pred[:breakpoint], label="Predition from least square", alpha=1)
+        ax.errorbar(x, 
+                    y, 
+                    yerr=y_err, 
+                    ecolor="k", 
+                    markerfacecolor="black", 
+                    markeredgecolor="black", 
+                    markersize=0.2,
+                    fmt="o", 
+                    capthick=1.5, 
+                    capsize=2)
+        ax.set_title("Multi Digression Prediction with Unknown Source")
+        ax.set_xlabel("Energy / keV")
+        ax.set_ylabel("log(Counts)")
+        ax.legend()
+        
 
-            plt.figure(figsize=(18, 5))
-            plt.plot(energy, tot_pred_best, label=f"{elename[i]} + Cs137")
-            plt.plot(energy, countss[0], label="Unknown")
-            plt.legend()
-            plt.title(f"{elename[i]}")
-            plt.ylabel("log(Counts)")
-            plt.xlabel("Energy / keV")
+
+
+
 
 
 
