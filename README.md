@@ -8,8 +8,8 @@ Message for collaborators~
 Please create a new branch for your own usage.
 
 
-eg.
-create new branch on github
-then on your local machine
-git fetch
-git checkout NewBranch
+eg.<br>
+create new branch on github<br>
+then on your local machine<br>
+git fetch<br>
+git checkout NewBranch<br>
