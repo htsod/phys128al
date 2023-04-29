@@ -10,7 +10,7 @@ Programs designed to process experiment data for PHYS128AL, an upper division ph
 Please create a new branch for your own usage.
 
 
-eg.<br>
+***eg.<br>***
 create new branch on github<br>
 then on your local machine<br>
 
