@@ -14,6 +14,7 @@ import math
 import pandas as pd
 import numpy as np
 from scipy.optimize import curve_fit
+from scipy.signal import lfilter
 
 # Spectral Analysis
 
@@ -133,11 +134,19 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
     print("Unknown")
 
     print("Each counts contribution is", end=" ")
+    counts_sum = 0
+    for c in range(len(sample_counts[condition])):
+        counts_sum += popt[condition][c] * sample_counts[condition][c]
+    counts_sum = counts_sum.sum()
     for i in range(len(sample_counts[condition])):
         end_str = ", "
-        if i == len(sample_counts[condition]-1):
+        if i == len(sample_counts[condition]):
             end_str = ""
-        print(f"{np.round(sample_counts[condition][i].sum() / sample_counts[condition].sum()*100, 4)} %", end=end_str)
+        nominator = popt[condition][i] * sample_counts[condition][i].sum()
+        denominator = counts_sum
+        print(f"{np.round((nominator/denominator)*100, 4)} %", end=end_str)
+
+
 
 
 
@@ -147,13 +156,10 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
         pred = pred + select_prop[i] * select_samples[i]
         pred_uncer = np.sqrt(np.square(pred_uncer) + np.square(select_samples_uncer[i]))
 
-    
     pred_uncer = pred_uncer / (pred+1)
     pred = np.log(pred+1)
     unknown_uncer = unknown_uncer / (unknown+1)
     unknown = np.log(unknown+1)
-    
-
 
     pick_points = np.arange(int(len(pred)/15), int(len(pred)/1.7), int(len(pred)/30))
     
@@ -168,10 +174,27 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
     yu_err = unknown_uncer[pick_points]
 
     if plotting == True:
+
         breakpoint = int(len(energy)*3/5)
+        energy = energy[:breakpoint]
+        unknown = unknown[:breakpoint]
+        unknown_uncer = unknown_uncer[:breakpoint]
+        pred = pred[:breakpoint]
+        pred_uncer = pred_uncer[:breakpoint]
+
         fig, ax = plt.subplots(figsize=(12,5))
-        ax.scatter(energy[:breakpoint], unknown[:breakpoint], label="Unknown", alpha=0.65, s=1)
-        ax.scatter(energy[:breakpoint], pred[:breakpoint], label="Predition from least square", alpha=1, s=1)
+        ax.scatter(energy, unknown, label="Unknown", alpha=0.65, s=1)
+        ax.scatter(energy, pred, label="Predition from least square", alpha=1, s=1)
+
+        # n = 1000
+        # b = [1.0 / n] * n
+        # a = 1
+        # unknown[730:] = lfilter(b, a, unknown[730:])
+        # pred[730:] = lfilter(b, a, pred[730:])
+
+        # ax.plot(energy, unknown, label="Unknown")
+        # ax.plot(energy, pred, label="Predition from least square")
+
         ax.errorbar(xu, 
                     yu, 
                     yerr=yu_err, 
@@ -194,11 +217,21 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
                     capthick=1.5, 
                     capsize=2,
                     label="Prediction Error")
-        ax.set_title("Multi Digression Prediction with Unknown Source")
+        
+        # ax.fill_between(energy, pred+pred_uncer, 
+        #                 pred-pred_uncer, facecolor='orange',
+        #                 alpha=0.5, 
+        #                 label="Region of Uncertainty of Prediction")
+        # ax.fill_between(energy, unknown+unknown_uncer,
+        #                  unknown-unknown_uncer, facecolor='b',
+        #                  alpha=0.5, label="Region of Uncertainty of Unknown")
+        
+        ax.set_title("Multi Digression Prediction Comparing with the Unknown Source")
         ax.set_xlabel("Energy / keV")
         ax.set_ylabel("log(Counts)")
         ax.legend()
-
+    
+    return energy, pred, pred_uncer, unknown, unknown_uncer
 
 
 
