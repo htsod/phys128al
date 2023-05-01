@@ -96,61 +96,108 @@ def func(x, a, b, c, d, e, f, g, h, i):
 
 def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, plotting=True):
     unknown = countss[0]
+    unknown_uncer = np.sqrt(unknown + 1)
     samples = np.array(countss[1:])
     popt, pcov = curve_fit(func, samples,
                            unknown, p0=[1, 0, 0, 0, 0, 0, 0, 0, 0], 
-                           sigma=np.sqrt(unknown + 1), bounds=(0, 5))
+                           sigma=unknown_uncer, absolute_sigma=True, bounds=(0, 5))
 
-    unknown_sample = countss[0]
     sample_counts = np.array(countss[1:])
     sample_counts_uncer = np.array(countss_uncer[1:])
     pred_name = np.array(file_name[1:])
     condition = np.where(popt >= cond)
 
-    print("The predictions are", pred_name[condition])
-    print("With proportion of", np.round(popt[condition], 3))
-
     select_prop = popt[condition]
     select_samples = sample_counts[condition]
     select_samples_uncer = sample_counts_uncer[condition]
 
-    pred = np.zeros(len(unknown_sample))
-    pred_uncer = np.zeros(len(unknown_sample))
+
+    print("The predictions are", pred_name[condition])
+
+    print("\nWith proportion of", np.round(popt[condition], 3))
+    print("uncertainties =", end=" ")
+    prop_uncer = []
+    for i in range(len(pred_name[condition])):
+        cond = condition[0][i]
+        prop_uncer.append(round(pcov[cond][cond] ** (1/2), 4))
+    print(prop_uncer)
+
+    print(f"percentage uncertainty of {np.round(prop_uncer/popt[condition]*100, 3)}")
+ 
+    print(f"\nThe equation that predicts y is stated as", end=" ")
+    for i in range(len(pred_name[condition])):
+        end_str = " + "
+        if i == int(len(pred_name[condition])-1):
+            end_str = " = "
+        print(f"{np.round(popt[condition][i], 3)}*{pred_name[condition][i]}", end=end_str)
+    print("Unknown")
+
+    print("Each counts contribution is", end=" ")
+    for i in range(len(sample_counts[condition])):
+        end_str = ", "
+        if i == len(sample_counts[condition]-1):
+            end_str = ""
+        print(f"{np.round(sample_counts[condition][i].sum() / sample_counts[condition].sum()*100, 4)} %", end=end_str)
+
+
+
+    pred = np.zeros(len(unknown))
+    pred_uncer = np.zeros(len(unknown))
     for i in range(len(select_samples)):
         pred = pred + select_prop[i] * select_samples[i]
         pred_uncer = np.sqrt(np.square(pred_uncer) + np.square(select_samples_uncer[i]))
 
     
-    pred_uncer = pred_uncer / pred
-    pred = np.log(pred)
-    unknown_sample = np.log(unknown_sample)
+    pred_uncer = pred_uncer / (pred+1)
+    pred = np.log(pred+1)
+    unknown_uncer = unknown_uncer / (unknown+1)
+    unknown = np.log(unknown+1)
+    
 
 
     pick_points = np.arange(int(len(pred)/15), int(len(pred)/1.7), int(len(pred)/30))
-    x = energy[pick_points]
-    y = pred[pick_points]
-    y_err = pred_uncer[pick_points]
+    
+    xs = energy[pick_points]
+    ys = pred[pick_points]
+    ys_err = pred_uncer[pick_points]
+    
+    pick_points = np.arange(int(len(pred)/15), int(len(pred)/1.7), int(len(pred)/30))
+    
+    xu = energy[pick_points]
+    yu = unknown[pick_points]
+    yu_err = unknown_uncer[pick_points]
 
     if plotting == True:
         breakpoint = int(len(energy)*3/5)
         fig, ax = plt.subplots(figsize=(12,5))
-        ax.plot(energy[:breakpoint], unknown_sample[:breakpoint], label="Unknown", alpha=0.65)
-        ax.plot(energy[:breakpoint], pred[:breakpoint], label="Predition from least square", alpha=1)
-        ax.errorbar(x, 
-                    y, 
-                    yerr=y_err, 
+        ax.scatter(energy[:breakpoint], unknown[:breakpoint], label="Unknown", alpha=0.65, s=1)
+        ax.scatter(energy[:breakpoint], pred[:breakpoint], label="Predition from least square", alpha=1, s=1)
+        ax.errorbar(xu, 
+                    yu, 
+                    yerr=yu_err, 
                     ecolor="k", 
                     markerfacecolor="black", 
                     markeredgecolor="black", 
                     markersize=0.2,
                     fmt="o", 
                     capthick=1.5, 
-                    capsize=2)
+                    capsize=2,
+                    label="Unknown Error")
+        ax.errorbar(xs, 
+                    ys, 
+                    yerr=ys_err, 
+                    ecolor="r", 
+                    markerfacecolor="black", 
+                    markeredgecolor="black", 
+                    markersize=0.2,
+                    fmt="o", 
+                    capthick=1.5, 
+                    capsize=2,
+                    label="Prediction Error")
         ax.set_title("Multi Digression Prediction with Unknown Source")
         ax.set_xlabel("Energy / keV")
         ax.set_ylabel("log(Counts)")
         ax.legend()
-        
 
 
 

@@ -132,7 +132,7 @@ def calculate_correction_factor():
     df_correction.loc[len(df_correction.index)] = t_list
     df_correction.loc[len(df_correction.index)] = factor
     df_correction.loc[len(df_correction.index)] = factor_uncer
-    ser = pd.Series(["half_life / s", "produce_date", "t_exp / s", "corr_factor", "uncertainty"])
+    ser = pd.Series(["half_life (s)", "produce_date", "t_exp (s)", "corr_factor", "uncertainty"])
     df_correction.set_index(ser, drop=True, inplace=True)
      
     
@@ -258,7 +258,7 @@ def read_data(bg_noise, bg_noise_uncer, factor, factor_uncer, plotting=[]):
         for i in range(len(plotting)):
             if plotting[i] == file_select:
                 fig, ax = plt.subplots(figsize=(18, 5))
-                ax.plot(energy, np.log(counts+1))
+                ax.scatter(energy, np.log(counts+1))
                 ax.set_title(f"Calibrated by {folder_select}, Measurement from {file_select}")
                 ax.set_xlabel("Energy / keV")
                 ax.set_ylabel("Counts")
