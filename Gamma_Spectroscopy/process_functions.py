@@ -3,10 +3,8 @@
 # created 04/27/23
 # Description:
 # Contains all the function to process and visualize data
-# The first four functions are devoted to spectral analysis
+# The first four functions are devoted to spectral analysis credit giving credit to Eobard Ding
 # The rest of the functions are devoted to Least Square Prediction on Composition
-# The last three functions are incomplete
-# Need evaluation method to the least square model
 
 
 import matplotlib.pyplot as plt
@@ -95,7 +93,7 @@ def func(x, a, b, c, d, e, f, g, h, i):
     return np.dot(w, x)
 
 
-def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, plotting=True):
+def least_square_weights(file_name, energy, countss, countss_uncer, cond1=0.05, cond2=0.05, plotting=True):
     unknown = countss[0]
     unknown_uncer = np.sqrt(unknown + 1)
     samples = np.array(countss[1:])
@@ -106,7 +104,7 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
     sample_counts = np.array(countss[1:])
     sample_counts_uncer = np.array(countss_uncer[1:])
     pred_name = np.array(file_name[1:])
-    condition = np.where(popt >= cond)
+    condition = np.where(popt >= cond1)
 
     select_prop = popt[condition]
     select_samples = sample_counts[condition]
@@ -115,6 +113,7 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
 
     print("The predictions are", pred_name[condition])
 
+
     print("\nWith proportion of", np.round(popt[condition], 3))
     print("uncertainties =", end=" ")
     prop_uncer = []
@@ -122,9 +121,9 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
         cond = condition[0][i]
         prop_uncer.append(round(pcov[cond][cond] ** (1/2), 4))
     print(prop_uncer)
-
     print(f"percentage uncertainty of {np.round(prop_uncer/popt[condition]*100, 3)}")
  
+
     print(f"\nThe equation that predicts y is stated as", end=" ")
     for i in range(len(pred_name[condition])):
         end_str = " + "
@@ -132,6 +131,7 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
             end_str = " = "
         print(f"{np.round(popt[condition][i], 3)}*{pred_name[condition][i]}", end=end_str)
     print("Unknown")
+
 
     print("Each counts contribution is", end=" ")
     counts_sum = 0
@@ -147,8 +147,15 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
         print(f"{np.round((nominator/denominator)*100, 4)} %", end=end_str)
 
 
+    # Reset criteria after inspection 
 
+    condition = np.where(popt >= cond2)
 
+    select_prop = popt[condition]
+    select_samples = sample_counts[condition]
+    select_samples_uncer = sample_counts_uncer[condition]
+
+    
 
     pred = np.zeros(len(unknown))
     pred_uncer = np.zeros(len(unknown))
@@ -186,15 +193,6 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
         ax.scatter(energy, unknown, label="Unknown", alpha=0.65, s=1)
         ax.scatter(energy, pred, label="Predition from least square", alpha=1, s=1)
 
-        # n = 1000
-        # b = [1.0 / n] * n
-        # a = 1
-        # unknown[730:] = lfilter(b, a, unknown[730:])
-        # pred[730:] = lfilter(b, a, pred[730:])
-
-        # ax.plot(energy, unknown, label="Unknown")
-        # ax.plot(energy, pred, label="Predition from least square")
-
         ax.errorbar(xu, 
                     yu, 
                     yerr=yu_err, 
@@ -218,18 +216,11 @@ def least_square_weights(file_name, energy, countss, countss_uncer, cond=0.05, p
                     capsize=2,
                     label="Prediction Error")
         
-        # ax.fill_between(energy, pred+pred_uncer, 
-        #                 pred-pred_uncer, facecolor='orange',
-        #                 alpha=0.5, 
-        #                 label="Region of Uncertainty of Prediction")
-        # ax.fill_between(energy, unknown+unknown_uncer,
-        #                  unknown-unknown_uncer, facecolor='b',
-        #                  alpha=0.5, label="Region of Uncertainty of Unknown")
-        
-        ax.set_title("Multi Digression Prediction Comparing with the Unknown Source")
-        ax.set_xlabel("Energy / keV")
-        ax.set_ylabel("log(Counts)")
+        ax.set_title("Multi Digression Prediction Comparing with the Unknown Source", fontsize=13, fontweight="bold")
+        ax.set_xlabel("Energy / keV", fontsize=11)
+        ax.set_ylabel("log(Counts)", fontsize=11)
         ax.legend()
+        plt.savefig("figures/Overview", format="png")
     
     return energy, pred, pred_uncer, unknown, unknown_uncer
 

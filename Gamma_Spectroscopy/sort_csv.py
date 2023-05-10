@@ -75,7 +75,7 @@ def calculate_correction_factor():
             "Co60", "Cd109", "Ba133", "Eu152",
                 "Zn65", "Mn54"]
     
-    produce_date = [date(2019, 3, 1), date(2022, 11, 1), 
+    produce_date = [date(2019, 3, 1), date(2019,3, 1), 
                     date(2022, 11, 3), date(2022, 11, 3), 
                     date(2023, 1, 18), date(2022, 12, 16),
                     date(2023, 1, 18), date(2022, 9, 7),
@@ -92,7 +92,7 @@ def calculate_correction_factor():
 
     t_elasped = []
     for d in range(len(produce_date)):
-        t_elasped.append(abs(produce_date[d] - date.today()).days)
+        t_elasped.append(abs(produce_date[d] - date(2023, 4, 24)).days)
     t_elasped = np.array(t_elasped) * 24 * 60 * 60
 
     unknown_second = (abs(produce_date[0] - date.today()).days) * 24 * 60 * 60
@@ -236,7 +236,7 @@ def read_data(bg_noise, bg_noise_uncer, factor, factor_uncer, plotting=[]):
                     pass
 
         energy = np.array(energy)        
-        energy = energy[[i>=30 for i in energy]] # pick out energy > 30 keV
+        energy = energy[[i>=0 for i in energy]] # pick out energy > 30 keV
 
         counts = np.array(counts)
         counts_uncer = get_count_uncer(counts)
@@ -261,7 +261,7 @@ def read_data(bg_noise, bg_noise_uncer, factor, factor_uncer, plotting=[]):
                 ax.scatter(energy, np.log(counts+1))
                 ax.set_title(f"Calibrated by {folder_select}, Measurement from {file_select}")
                 ax.set_xlabel("Energy / keV")
-                ax.set_ylabel("Counts")
+                ax.set_ylabel("log(Counts)")
             else:
                 pass
 
