@@ -13,7 +13,7 @@ Each Lab contains .py files, a .ipynb file and bunch of data
 data are processed by running the notebook .ipynb file
 
 
-### Message for users~
+### Message for users
 
 
 For each lab download the requirements by
@@ -22,10 +22,10 @@ For each lab download the requirements by
 > pip download -r requirements.txt
 
 
-Follows the steps in the notebook
+Follows the steps in the .ipynb notebook in each lab.
 
 
-### Message for collaborators~
+### Message for collaborators
 
 
 Please create a new branch for your own usage.
