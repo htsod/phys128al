@@ -30,72 +30,6 @@ def preview_images(file_location, image_number, plotting=True):
     return img
 
 
-def get_laser_pos(image):
-    y_len = np.shape(image)[0]
-    x_len = np.shape(image)[1]
-    x_sum, y_sum = [], []
-    for i in range(x_len):
-        for j in range(y_len):
-            if (abs(image[j][i][0] - 255) <= 2):
-                x_sum.append(i)
-                y_sum.append(j)
-            else:
-                pass
-        x_mean, y_mean = np.array(x_sum).mean(), np.array(y_sum).mean()
-    return y_mean, x_mean
-
-
-def cal_dist(pos1, pos2):
-    diff_y = pos1[0] - pos2[0]
-    diff_x = pos1[1] - pos2[1]
-    return np.sqrt(diff_y**2 + diff_x**2)
-
-
-def cal_conver_factor(x1, x2, pos1, pos2):
-    return abs(x1-x2)/cal_dist(pos1, pos2)
-
-
-def conver_factor_and_init_pos(y_bound):
-    folder = ["./s1/", "./s2/"]
-
-    conver_list = []
-    init_pos_list = []
-    for f in range(len(folder)):
-        conver_fac = []
-        with open(folder[f] + "conver.csv") as csvfile:
-            read_data = csv.reader(csvfile, delimiter=',')
-            for row in read_data:
-                conver_fac.append(row)
-
-        f_location = []
-        for i in range(len(conver_fac)):
-            f_location.append(folder[f] + f"pos{f+1}_{i+1}.tif")
-
-        init_pos = []
-        for i in range(len(conver_fac)):
-            x = []
-            pos = [[], []]
-            for j in range(2):
-                if j == 0:
-                    init_pos.append(float(conver_fac[i][2*j+1]))
-                image = preview_images(f_location[i], int(conver_fac[i][2*j]), plotting=False)
-                image = image[y_bound[0]:y_bound[1]]
-                pix_y, pix_x = get_laser_pos(image)
-                pos[j].append(pix_y)
-                pos[j].append(pix_x)
-                x.append(float(conver_fac[i][2*j+1]))
-            conv = cal_conver_factor(x[0], x[1], pos[0], pos[1])
-            conver_list.append(conv)
-        init_pos_list.append(init_pos)
-    conver_mean = np.array(conver_list).mean()
-    conver_std = np.array(conver_list).std()
-    print(f"\n\n\nThe average of the conversion is {conver_mean} with std of {conver_std}")
-    print("Conversion_list = ", conver_list, "\n", "initial_position_list = ", init_pos_list)
-    print("\n\n\n")
-
-    return conver_mean, conver_std, init_pos_list
-
-
 def gen_pix_pos(file_location, y_bound):
     tif = TIFF.open(file_location)
     pix_pos = []
@@ -109,21 +43,118 @@ def gen_pix_pos(file_location, y_bound):
     return pix_pos, img_num
 
 
-def get_x(pix_pos, x1, conver):
-    init_pix = pix_pos[0]
-    rel_dist = []
-    for i in range(len(pix_pos)):
-        rel_dist.append(init_pix - pix_pos[i])
-    pos_cm = np.array(rel_dist) * conver + x1
+def get_x_new(pix_pos, meter_stick_pix, meter_stick_cm):
+    pos_cm = []
+    if len(meter_stick_pix) == len(meter_stick_cm):
+        print("Running")
+        for p in pix_pos:
+            f_pos = 0
+            cond = False
+            for m in range(len(meter_stick_pix)):
+                meter_pix = meter_stick_pix[m]
+                if p < meter_pix:
+                    cond = True
+                    f_pos = meter_pix
+                elif (p > meter_pix) and (cond==True):
+                    approx_pos = meter_stick_cm[m] + (p - f_pos)/(meter_pix - f_pos)
+                    pos_cm.append(approx_pos)
+                    break
+                elif (p > meter_pix) and (cond==False):
+                    print("Colldie with Wall")
+                    pos_cm.append(meter_stick_cm[0])
+                    break
+                else:
+                    pos_cm.append(meter_stick_cm[-1])
+                    print("Collide with Wall")
+                    break
+    else:
+        print("Not equal length")
     return pos_cm
 
 
 def plot_dots(image_len, pos_cm, T):
     x = np.arange(T, T * image_len+1, T)
     y = pos_cm
+    print("the length of x and y are", len(x), len(y))
     plt.figure(figsize=(10, 5))
     plt.scatter(x, y)
     plt.title("Laser Points displacement")
     plt.xlabel("Time / s")
     plt.ylabel("Displacement / m")
     return x, y
+
+
+def get_laser_pos(image):
+    y_len = np.shape(image)[0]
+    x_len = np.shape(image)[1]
+    x_sum, y_sum = [], []
+    for i in range(x_len):
+        for j in range(y_len):
+            if (abs(image[j][i][0] - 255) <= 1):
+                x_sum.append(i)
+                y_sum.append(j)
+            else:
+                pass
+        x_mean, y_mean = np.array(x_sum).mean(), np.array(y_sum).mean()
+    return y_mean, x_mean
+
+
+# def get_x(pix_pos, x1, conver):
+#     init_pix = pix_pos[0]
+#     rel_dist = []
+#     for i in range(len(pix_pos)):
+#         rel_dist.append(init_pix - pix_pos[i])
+#     pos_cm = np.array(rel_dist) * conver + x1
+#     return pos_cm
+
+
+# def cal_dist(pos1, pos2):
+#     diff_y = pos1[0] - pos2[0]
+#     diff_x = pos1[1] - pos2[1]
+#     return np.sqrt(diff_y**2 + diff_x**2)
+
+
+# def cal_conver_factor(x1, x2, pos1, pos2):
+#     return abs(x1-x2)/cal_dist(pos1, pos2)
+
+
+# def conver_factor_and_init_pos(y_bound):
+#     folder = ["./s1/", "./s2/"]
+
+#     conver_list = []
+#     init_pos_list = []
+#     for f in range(len(folder)):
+#         conver_fac = []
+#         with open(folder[f] + "conver.csv") as csvfile:
+#             read_data = csv.reader(csvfile, delimiter=',')
+#             for row in read_data:
+#                 conver_fac.append(row)
+
+#         f_location = []
+#         for i in range(len(conver_fac)):
+#             f_location.append(folder[f] + f"pos{f+1}_{i+1}.tif")
+
+#         init_pos = []
+#         for i in range(len(conver_fac)):
+#             x = []
+#             pos = [[], []]
+#             for j in range(2):
+#                 if j == 0:
+#                     init_pos.append(float(conver_fac[i][2*j+1]))
+#                 image = preview_images(f_location[i], int(conver_fac[i][2*j]), plotting=False)
+#                 image = image[y_bound[0]:y_bound[1]]
+#                 pix_y, pix_x = get_laser_pos(image)
+#                 pos[j].append(pix_y)
+#                 pos[j].append(pix_x)
+#                 x.append(float(conver_fac[i][2*j+1]))
+#             conv = cal_conver_factor(x[0], x[1], pos[0], pos[1])
+#             conver_list.append(conv)
+#         init_pos_list.append(init_pos)
+#     conver_mean = np.array(conver_list).mean()
+#     conver_std = np.array(conver_list).std()
+#     print(f"\n\n\nThe average of the conversion is {conver_mean} with std of {conver_std}")
+#     print("Conversion_list = ", conver_list, "\n", "initial_position_list = ", init_pos_list)
+#     print("\n\n\n")
+
+#     return conver_mean, conver_std, init_pos_list
+
