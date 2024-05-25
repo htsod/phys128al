@@ -1,7 +1,7 @@
 # PHYS128AL
 
 ### Description
-Programs designed to process experiment data for PHYS128AL, an upper division physics lab.
+Programs designed to process experiment data for PHYS128AL, an undergrad lab course.
 
 
 Each Lab contains .py files, a .ipynb file and bunch of data
